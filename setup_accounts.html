@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إعداد الحسابات - نظام إدارة الديون</title>
+</head>
+<body>
+    <h1>جاري إعداد الحسابات الافتراضية...</h1>
+    <p>الرجاء الانتظار، قد يستغرق هذا بضع دقائق.</p>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        async function setupAccounts() {
+            try {
+                // إضافة الحساب الأول: معتصم
+                await addUser('ma3tham@debttracker.com', '07829651319', 'admin');
+                console.log('تم إضافة الحساب: ma3tham@debttracker.com');
+                
+                // إضافة الحساب الثاني: مسلم
+                await addUser('muslim@debttracker.com', '07850572326', 'worker');
+                console.log('تم إضافة الحساب: muslim@debttracker.com');
+                
+                // إضافة الحساب الثالث: جمال
+                await addUser('esam@debttracker.com', '1234qqww', 'worker');
+                console.log('تم إضافة الحساب: esam@debttracker.com');
+                
+                document.body.innerHTML = '<h1>تم إعداد الحسابات الافتراضية بنجاح!</h1><p>الحسابات المضافة:</p><ul><li>ma3tham@debttracker.com (مدير)</li><li>muslim@debttracker.com (عامل)</li><li>esam@debttracker.com (عامل)</li></ul><p><a href="index.html">العودة إلى الصفحة الرئيسية</a></p>';
+            } catch (error) {
+                console.error('Error setting up accounts:', error);
+                document.body.innerHTML = '<h1>حدث خطأ أثناء إعداد الحسابات</h1><p>الخطأ: ' + error.message + '</p><p><a href="index.html">العودة إلى الصفحة الرئيسية</a></p>';
+            }
+        }
+
+        // بدء إعداد الحسابات عند تحميل الصفحة
+        setupAccounts();
+    </script>
+</body>
+</html>
