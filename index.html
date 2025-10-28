@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة الديون</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+    <header>
+        <h1>نظام إدارة الديون</h1>
+        <nav>
+            <ul>
+                <li><a href="dashboard.html">لوحة التحكم</a></li>
+                <li><a href="customers.html">الزبائن</a></li>
+                <li><a href="debts.html">الديون</a></li>
+                <li><a href="reports.html">التقارير</a></li>
+                <li><a href="login.html" id="login-logout-link">تسجيل الدخول</a></li>
+                <li><a href="notifications.html">الإشعارات <span id="notification-badge" style="display: none; background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 12px; margin-right: 5px;"></span></a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section id="main-content">
+            <h2>مرحباً بك في نظام إدارة ديون المتاجر</h2>
+            <p>الرجاء تسجيل الدخول للبدء.</p>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 جميع الحقوق محفوظة.</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+</body>
+</html>

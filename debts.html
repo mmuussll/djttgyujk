@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة الديون - نظام إدارة الديون</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+    <header>
+        <h1>نظام إدارة الديون</h1>
+        <nav>
+            <ul>
+                <li><a href="dashboard.html">لوحة التحكم</a></li>
+                <li><a href="customers.html">الزبائن</a></li>
+                <li><a href="debts.html">الديون</a></li>
+                <li><a href="payments.html">السدادات</a></li>
+                <li><a href="reports.html">التقارير</a></li>
+                <li><a href="#" id="login-logout-link">تسجيل الخروج</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section id="debts-content">
+            <h2>إدارة الديون</h2>
+            
+            <div id="add-debt-form" class="form-section">
+                <h3>إضافة دين جديد</h3>
+                <form id="debt-form">
+                    <div class="form-group">
+                        <label for="debt-customer">الزبون:</label>
+                        <select id="debt-customer" name="debt-customer" required>
+                            <option value="">اختر زبوناً</option>
+                            <!-- سيتم ملء الزبائن هنا -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="debt-amount">المبلغ:</label>
+                        <input type="number" id="debt-amount" name="debt-amount" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="debt-description">الوصف:</label>
+                        <input type="text" id="debt-description" name="debt-description">
+                    </div>
+                    <div class="form-group">
+                        <label for="debt-date">التاريخ:</label>
+                        <input type="date" id="debt-date" name="debt-date" required>
+                    </div>
+                    <button type="submit" class="btn">إضافة الدين</button>
+                </form>
+            </div>
+            
+            <div id="debts-list" class="list-section">
+                <h3>قائمة الديون</h3>
+                <table id="debts-table">
+                    <thead>
+                        <tr>
+                            <th>الزبون</th>
+                            <th>المبلغ</th>
+                            <th>الوصف</th>
+                            <th>التاريخ</th>
+                            <th>الحالة</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="debts-tbody">
+                        <!-- سيتم ملء البيانات هنا -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 جميع الحقوق محفوظة.</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // التحقق من حالة تسجيل الدخول
+            const { data: { session } } = await window.supabase.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // تحديث رابط تسجيل الخروج
+            const loginLogoutLink = document.getElementById('login-logout-link');
+            loginLogoutLink.textContent = 'تسجيل الخروج';
+            loginLogoutLink.href = '#';
+            loginLogoutLink.addEventListener('click', async (e) => {
+                e.preventDefault();
+                await window.supabase.auth.signOut();
+                window.location.href = 'index.html';
+            });
+
+            // تحميل قائمة الزبائن لقائمة التحديد
+            loadCustomersForSelect();
+            
+            // تحميل قائمة الديون
+            loadDebts();
+
+            // إضافة مستمع لنموذج إضافة الدين
+            document.getElementById('debt-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const customerId = document.getElementById('debt-customer').value;
+                const amount = parseFloat(document.getElementById('debt-amount').value);
+                const description = document.getElementById('debt-description').value;
+                const date = document.getElementById('debt-date').value;
+                
+                try {
+                    await addDebt(customerId, amount, description, date);
+                    // مسح الحقول
+                    document.getElementById('debt-form').reset();
+                    // إعادة تحميل قائمة الديون
+                    loadDebts();
+                } catch (error) {
+                    console.error('Error adding debt:', error);
+                    alert('حدث خطأ أثناء إضافة الدين');
+                }
+            });
+        });
+
+        async function loadCustomersForSelect() {
+            try {
+                const customers = await getCustomers();
+                const select = document.getElementById('debt-customer');
+                select.innerHTML = '<option value="">اختر زبوناً</option>';
+                
+                customers.forEach(customer => {
+                    const option = document.createElement('option');
+                    option.value = customer.id;
+                    option.textContent = customer.name;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading customers for select:', error);
+            }
+        }
+
+        async function loadDebts() {
+            try {
+                const { data: debts, error } = await window.supabase
+                    .from('debts')
+                    .select(`
+                        id,
+                        amount,
+                        description,
+                        date,
+                        status,
+                        customers(name)
+                    `);
+                
+                if (error) throw error;
+                
+                const tbody = document.getElementById('debts-tbody');
+                tbody.innerHTML = '';
+                
+                debts.forEach(debt => {
+                    const row = tbody.insertRow();
+                    row.insertCell(0).textContent = debt.customers?.name || 'غير معروف';
+                    row.insertCell(1).textContent = parseFloat(debt.amount).toFixed(2);
+                    row.insertCell(2).textContent = debt.description || '';
+                    row.insertCell(3).textContent = debt.date;
+                    row.insertCell(4).textContent = debt.status === 'paid' ? 'مسدد' : (debt.status === 'partial' ? 'جزئي' : 'معلق');
+                    
+                    const actionsCell = row.insertCell(5);
+                    
+                    // زر تحديث الحالة
+                    const updateStatusBtn = document.createElement('button');
+                    updateStatusBtn.textContent = 'تحديث الحالة';
+                    updateStatusBtn.className = 'btn btn-update';
+                    updateStatusBtn.onclick = () => updateDebtStatus(debt.id, debt.status);
+                    actionsCell.appendChild(updateStatusBtn);
+                    
+                    // زر الحذف
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.textContent = 'حذف';
+                    deleteBtn.className = 'btn btn-danger';
+                    deleteBtn.onclick = () => deleteDebt(debt.id);
+                    actionsCell.appendChild(deleteBtn);
+                });
+            } catch (error) {
+                console.error('Error loading debts:', error);
+                alert('حدث خطأ أثناء تحميل قائمة الديون');
+            }
+        }
+
+        async function updateDebtStatus(debtId, currentStatus) {
+            const newStatus = currentStatus === 'pending' ? 'paid' : 
+                             currentStatus === 'paid' ? 'pending' : 'paid';
+            
+            try {
+                await window.supabase
+                    .from('debts')
+                    .update({ status: newStatus })
+                    .eq('id', debtId);
+                
+                loadDebts(); // إعادة تحميل القائمة
+            } catch (error) {
+                console.error('Error updating debt status:', error);
+                alert('حدث خطأ أثناء تحديث حالة الدين');
+            }
+        }
+
+        async function deleteDebt(debtId) {
+            if (!confirm('هل أنت متأكد من حذف هذا الدين؟')) return;
+            
+            try {
+                await window.supabase
+                    .from('debts')
+                    .delete()
+                    .eq('id', debtId);
+                
+                loadDebts(); // إعادة تحميل القائمة
+            } catch (error) {
+                console.error('Error deleting debt:', error);
+                alert('حدث خطأ أثناء حذف الدين');
+            }
+        }
+    </script>
+    
+    <style>
+        .form-section {
+            background: #fff;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        
+        .list-section {
+            background: #fff;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 10px;
+            text-align: right;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background-color: #f2f2;
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+            margin-right: 5px;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        
+        .btn-update {
+            background-color: #007bff;
+            margin-right: 5px;
+        }
+        
+        .btn-update:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</body>
+</html>

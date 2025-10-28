@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول - نظام إدارة الديون</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/login.css">
+</head>
+<body>
+
+    <header>
+        <h1>نظام إدارة الديون</h1>
+    </header>
+
+    <main>
+        <section id="login-form-section">
+            <h2>تسجيل الدخول</h2>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="email">البريد الإلكتروني:</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">كلمة المرور:</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" class="btn">تسجيل الدخول</button>
+            </form>
+            <p id="error-message" class="error-text"></p>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 جميع الحقوق محفوظة.</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorMessage = document.getElementById('error-message');
+
+            const { data, error } = await signIn(email, password);
+
+            if (error) {
+                errorMessage.textContent = 'فشل تسجيل الدخول. يرجى التحقق من بريدك الإلكتروني وكلمة المرور.';
+            } else {
+                window.location.href = 'dashboard.html';
+            }
+        });
+    </script>
+</body>
+</html>

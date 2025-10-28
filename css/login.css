@@ -1,0 +1,40 @@
+#login-form-section {
+    max-width: 400px;
+    margin: 40px auto;
+    padding: 20px;
+    background: #fff;
+    border: 1px solid #ddd;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.btn {
+    display: inline-block;
+    background: #333;
+    color: #fff;
+    padding: 10px 20px;
+    border: 0;
+    cursor: pointer;
+    border-radius: 5px;
+    width: 100%;
+}
+
+.error-text {
+    color: #ff0000;
+    margin-top: 10px;
+}

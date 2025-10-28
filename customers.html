@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة الزبائن - نظام إدارة الديون</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+    <header>
+        <h1>نظام إدارة الديون</h1>
+        <nav>
+            <ul>
+                <li><a href="dashboard.html">لوحة التحكم</a></li>
+                <li><a href="customers.html">الزبائن</a></li>
+                <li><a href="debts.html">الديون</a></li>
+                <li><a href="payments.html">السدادات</a></li>
+                <li><a href="reports.html">التقارير</a></li>
+                <li><a href="#" id="login-logout-link">تسجيل الخروج</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section id="customers-content">
+            <h2>إدارة الزبائن</h2>
+            
+            <div id="add-customer-form" class="form-section">
+                <h3>إضافة زبون جديد</h3>
+                <form id="customer-form">
+                    <div class="form-group">
+                        <label for="customer-name">الاسم:</label>
+                        <input type="text" id="customer-name" name="customer-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="customer-phone">الهاتف:</label>
+                        <input type="text" id="customer-phone" name="customer-phone">
+                    </div>
+                    <div class="form-group">
+                        <label for="customer-address">العنوان:</label>
+                        <input type="text" id="customer-address" name="customer-address">
+                    </div>
+                    <button type="submit" class="btn">إضافة الزبون</button>
+                </form>
+            </div>
+            
+            <div id="customers-list" class="list-section">
+                <h3>قائمة الزبائن</h3>
+                <table id="customers-table">
+                    <thead>
+                        <tr>
+                            <th>الاسم</th>
+                            <th>الهاتف</th>
+                            <th>العنوان</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customers-tbody">
+                        <!-- سيتم ملء البيانات هنا -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 جميع الحقوق محفوظة.</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // التحقق من حالة تسجيل الدخول
+            const { data: { session } } = await window.supabase.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // تحديث رابط تسجيل الخروج
+            const loginLogoutLink = document.getElementById('login-logout-link');
+            loginLogoutLink.textContent = 'تسجيل الخروج';
+            loginLogoutLink.href = '#';
+            loginLogoutLink.addEventListener('click', async (e) => {
+                e.preventDefault();
+                await window.supabase.auth.signOut();
+                window.location.href = 'index.html';
+            });
+
+            // تحميل قائمة الزبائن
+            loadCustomers();
+
+            // إضافة مستمع لنموذج إضافة الزبون
+            document.getElementById('customer-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const name = document.getElementById('customer-name').value;
+                const phone = document.getElementById('customer-phone').value;
+                const address = document.getElementById('customer-address').value;
+                
+                try {
+                    await addCustomer(name, phone, address);
+                    // مسح الحقول
+                    document.getElementById('customer-form').reset();
+                    // إعادة تحميل قائمة الزبائن
+                    loadCustomers();
+                } catch (error) {
+                    console.error('Error adding customer:', error);
+                    alert('حدث خطأ أثناء إضافة الزبون');
+                }
+            });
+        });
+
+        async function loadCustomers() {
+            try {
+                const customers = await getCustomers();
+                const tbody = document.getElementById('customers-tbody');
+                tbody.innerHTML = '';
+                
+                customers.forEach(customer => {
+                    const row = tbody.insertRow();
+                    row.insertCell(0).textContent = customer.name;
+                    row.insertCell(1).textContent = customer.phone || '';
+                    row.insertCell(2).textContent = customer.address || '';
+                    
+                    const actionsCell = row.insertCell(3);
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.textContent = 'حذف';
+                    deleteBtn.className = 'btn btn-danger';
+                    deleteBtn.onclick = () => deleteCustomer(customer.id);
+                    actionsCell.appendChild(deleteBtn);
+                });
+            } catch (error) {
+                console.error('Error loading customers:', error);
+                alert('حدث خطأ أثناء تحميل قائمة الزبائن');
+            }
+        }
+
+        async function deleteCustomer(customerId) {
+            if (!confirm('هل أنت متأكد من حذف هذا الزبون؟')) return;
+            
+            try {
+                await window.supabase
+                    .from('customers')
+                    .delete()
+                    .eq('id', customerId);
+                
+                loadCustomers(); // إعادة تحميل القائمة
+            } catch (error) {
+                console.error('Error deleting customer:', error);
+                alert('حدث خطأ أثناء حذف الزبون');
+            }
+        }
+    </script>
+    
+    <style>
+        .form-section {
+            background: #fff;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        
+        .list-section {
+            background: #fff;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 10px;
+            text-align: right;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background-color: #f2f2;
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+    </style>
+</body>
+</html>

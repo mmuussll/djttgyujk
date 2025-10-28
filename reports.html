@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التقارير - نظام إدارة الديون</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+    <header>
+        <h1>نظام إدارة الديون</h1>
+        <nav>
+            <ul>
+                <li><a href="dashboard.html">لوحة التحكم</a></li>
+                <li><a href="customers.html">الزبائن</a></li>
+                <li><a href="debts.html">الديون</a></li>
+                <li><a href="payments.html">السدادات</a></li>
+                <li><a href="reports.html">التقارير</a></li>
+                <li><a href="#" id="login-logout-link">تسجيل الخروج</a></li>
+                <li><a href="notifications.html">الإشعارات <span id="notification-badge" style="display: none; background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 12px; margin-right: 5px;"></span></a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section id="reports-content">
+            <h2>التقارير</h2>
+            
+            <div id="reports-filters" class="form-section">
+                <h3>تصفية التقارير</h3>
+                <form id="reports-filter-form">
+                    <div class="form-group">
+                        <label for="start-date">من تاريخ:</label>
+                        <input type="date" id="start-date" name="start-date">
+                    </div>
+                    <div class="form-group">
+                        <label for="end-date">إلى تاريخ:</label>
+                        <input type="date" id="end-date" name="end-date">
+                    </div>
+                    <div class="form-group">
+                        <label for="report-type">نوع التقرير:</label>
+                        <select id="report-type" name="report-type">
+                            <option value="summary">ملخص الديون</option>
+                            <option value="customers">ديون الزبائن</option>
+                            <option value="payments">السدادات</option>
+                            <option value="pending">الديون المستحقة</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn" id="generate-report-btn">توليد التقرير</button>
+                    <button type="button" class="btn" id="print-report-btn">طباعة التقرير</button>
+                </form>
+            </div>
+            
+            <div id="reports-results" class="list-section">
+                <h3>نتائج التقرير</h3>
+                <div id="report-content">
+                    <!-- سيتم عرض التقرير هنا -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 جميع الحقوق محفوظة.</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // التحقق من حالة تسجيل الدخول
+            const { data: { session } } = await window.supabase.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // تحديث رابط تسجيل الخروج
+            const loginLogoutLink = document.getElementById('login-logout-link');
+            loginLogoutLink.textContent = 'تسجيل الخروج';
+            loginLogoutLink.href = '#';
+            loginLogoutLink.addEventListener('click', async (e) => {
+                e.preventDefault();
+                await window.supabase.auth.signOut();
+                window.location.href = 'index.html';
+            });
+
+            // إضافة مستمع لزر توليد التقرير
+            document.getElementById('generate-report-btn').addEventListener('click', generateReport);
+            
+            // إضافة مستمع لزر طباعة التقرير
+            document.getElementById('print-report-btn').addEventListener('click', printReport);
+        });
+
+        async function generateReport() {
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+            const reportType = document.getElementById('report-type').value;
+            
+            try {
+                let reportData = [];
+                
+                if (reportType === 'summary') {
+                    reportData = await generateSummaryReport(startDate, endDate);
+                } else if (reportType === 'customers') {
+                    reportData = await generateCustomersReport(startDate, endDate);
+                } else if (reportType === 'payments') {
+                    reportData = await generatePaymentsReport(startDate, endDate);
+                } else if (reportType === 'pending') {
+                    reportData = await generatePendingReport(startDate, endDate);
+                }
+                
+                displayReport(reportData, reportType);
+            } catch (error) {
+                console.error('Error generating report:', error);
+                alert('حدث خطأ أثناء توليد التقرير');
+            }
+        }
+
+        async function generateSummaryReport(startDate, endDate) {
+            // استعلام للحصول على ملخص الديون
+            let query = window.supabase
+                .from('debts')
+                .select(`
+                    count(*) as total_debts,
+                    sum(amount) as total_amount
+                `);
+            
+            if (startDate) {
+                query = query.gte('date', startDate);
+            }
+            if (endDate) {
+                query = query.lte('date', endDate);
+            }
+            
+            const { data, error } = await query;
+            if (error) throw error;
+            
+            // حساب المبالغ المدفوعة والمستحقة بشكل منفصل
+            let paidQuery = window.supabase
+                .from('debts')
+                .select('sum(amount)')
+                .eq('status', 'paid');
+                
+            let pendingQuery = window.supabase
+                .from('debts')
+                .select('sum(amount)')
+                .eq('status', 'pending');
+                
+            if (startDate) {
+                paidQuery = paidQuery.gte('date', startDate);
+                pendingQuery = pendingQuery.gte('date', startDate);
+            }
+            if (endDate) {
+                paidQuery = paidQuery.lte('date', endDate);
+                pendingQuery = pendingQuery.lte('date', endDate);
+            }
+            
+            const [{ data: paidData, error: paidError }, { data: pendingData, error: pendingError }] = await Promise.all([
+                paidQuery,
+                pendingQuery
+            ]);
+            
+            if (paidError) console.error('Error getting paid amount:', paidError);
+            if (pendingError) console.error('Error getting pending amount:', pendingError);
+            
+            return [{
+                total_debts: data[0]?.count || 0,
+                total_amount: data[0]?.total_amount || 0,
+                paid_amount: paidData?.[0]?.sum || 0,
+                pending_amount: pendingData?.[0]?.sum || 0
+            }];
+        }
+
+        async function generateCustomersReport(startDate, endDate) {
+            // استعلام للحصول على ديون الزبائن
+            let query = window.supabase
+                .from('debts')
+                .select(`
+                    customer_id,
+                    customers(name),
+                    sum(amount) as total_debt,
+                    count(*) as debt_count
+                `)
+                .group('customer_id, customers.name');
+            
+            if (startDate) {
+                query = query.gte('date', startDate);
+            }
+            if (endDate) {
+                query = query.lte('date', endDate);
+            }
+            
+            const { data, error } = await query;
+            if (error) throw error;
+            
+            return data;
+        }
+
+        async function generatePaymentsReport(startDate, endDate) {
+            // استعلام للحصول على السدادات
+            let query = window.supabase
+                .from('payments')
+                .select(`
+                    sum(amount) as total_payments,
+                    count(*) as payment_count
+                `);
+            
+            if (startDate) {
+                query = query.gte('date', startDate);
+            }
+            if (endDate) {
+                query = query.lte('date', endDate);
+            }
+            
+            const { data, error } = await query;
+            if (error) throw error;
+            
+            return data;
+        }
+
+        async function generatePendingReport(startDate, endDate) {
+            // استعلام للحصول على الديون المستحقة
+            let query = window.supabase
+                .from('debts')
+                .select(`
+                    customer_id,
+                    customers(name),
+                    amount,
+                    description,
+                    date
+                `)
+                .eq('status', 'pending');
+            
+            if (startDate) {
+                query = query.gte('date', startDate);
+            }
+            if (endDate) {
+                query = query.lte('date', endDate);
+            }
+            
+            const { data, error } = await query;
+            if (error) throw error;
+            
+            return data;
+        }
+
+        function displayReport(reportData, reportType) {
+            const reportContent = document.getElementById('report-content');
+            
+            if (!reportData || reportData.length === 0) {
+                reportContent.innerHTML = '<p>لا توجد بيانات لتعرضها في هذا التقرير.</p>';
+                return;
+            }
+            
+            let reportHTML = '<div class="report-table-container"><table class="report-table"><thead><tr>';
+            
+            // تحديد رؤوس الجدول بناءً على نوع التقرير
+            switch(reportType) {
+                case 'summary':
+                    reportHTML += '<th>إجمالي الديون</th><th>إجمالي المبلغ</th><th>المبلغ المدفوع</th><th>المبلغ المستحق</th>';
+                    break;
+                case 'customers':
+                    reportHTML += '<th>اسم الزبون</th><th>إجمالي الدين</th><th>عدد الديون</th>';
+                    break;
+                case 'payments':
+                    reportHTML += '<th>إجمالي السدادات</th><th>عدد السدادات</th>';
+                    break;
+                case 'pending':
+                    reportHTML += '<th>اسم الزبون</th><th>المبلغ</th><th>الوصف</th><th>التاريخ</th>';
+                    break;
+            }
+            
+            reportHTML += '</tr></thead><tbody>';
+            
+            // عرض بيانات التقرير
+            reportData.forEach(item => {
+                reportHTML += '<tr>';
+                
+                switch(reportType) {
+                    case 'summary':
+                        reportHTML += `<td>${item.total_debts || 0}</td>`;
+                        reportHTML += `<td>${parseFloat(item.total_amount || 0).toFixed(2)}</td>`;
+                        reportHTML += `<td>${parseFloat(item.paid_amount || 0).toFixed(2)}</td>`;
+                        reportHTML += `<td>${parseFloat(item.pending_amount || 0).toFixed(2)}</td>`;
+                        break;
+                    case 'customers':
+                        reportHTML += `<td>${item.customers?.name || 'غير معروف'}</td>`;
+                        reportHTML += `<td>${parseFloat(item.total_debt || 0).toFixed(2)}</td>`;
+                        reportHTML += `<td>${item.debt_count || 0}</td>`;
+                        break;
+                    case 'payments':
+                        reportHTML += `<td>${parseFloat(item.total_payments || 0).toFixed(2)}</td>`;
+                        reportHTML += `<td>${item.payment_count || 0}</td>`;
+                        break;
+                    case 'pending':
+                        reportHTML += `<td>${item.customers?.name || 'غير معروف'}</td>`;
+                        reportHTML += `<td>${parseFloat(item.amount || 0).toFixed(2)}</td>`;
+                        reportHTML += `<td>${item.description || ''}</td>`;
+                        reportHTML += `<td>${item.date || ''}</td>`;
+                        break;
+                }
+                
+                reportHTML += '</tr>';
+            });
+            
+            reportHTML += '</tbody></table></div>';
+            reportContent.innerHTML = reportHTML;
+        }
+
+        function printReport() {
+            const printContent = document.getElementById('reports-results').innerHTML;
+            const originalContent = document.body.innerHTML;
+            
+            document.body.innerHTML = `
+                <html>
+                    <head>
+                        <title>تقرير ديون المتجر</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; }
+                            table { border-collapse: collapse; width: 100%; }
+                            th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }
+                            th { background-color: #f2f2f2; }
+                        </style>
+                    </head>
+                    <body>
+                        <h2>تقرير ديون المتجر</h2>
+                        ${printContent}
+                    </body>
+                </html>
+            `;
+            
+            window.print();
+            document.body.innerHTML = originalContent;
+        }
+    </script>
+    
+    <style>
+        .form-section {
+            background: #fff;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+        }
+        
+        .list-section {
+            background: #fff;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+        }
+        
+        .form-group {
+            display: inline-block;
+            margin-left: 20px;
+            margin-bottom: 15px;
+            vertical-align: top;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .report-table-container {
+            overflow-x: auto;
+        }
+        
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .report-table th, .report-table td {
+            padding: 10px;
+            text-align: right;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .report-table th {
+            background-color: var(--secondary-color);
+            color: #fff;
+        }
+    </style>
+</body>
+</html>

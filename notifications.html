@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الإشعارات - نظام إدارة الديون</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+    <header>
+        <h1>نظام إدارة الديون</h1>
+        <nav>
+            <ul>
+                <li><a href="dashboard.html">لوحة التحكم</a></li>
+                <li><a href="customers.html">الزبائن</a></li>
+                <li><a href="debts.html">الديون</a></li>
+                <li><a href="payments.html">السدادات</a></li>
+                <li><a href="reports.html">التقارير</a></li>
+                <li><a href="#" id="login-logout-link">تسجيل الخروج</a></li>
+                <li><a href="notifications.html">الإشعارات <span id="notification-badge" style="display: none; background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 12px; margin-right: 5px;"></span></a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section id="notifications-content">
+            <h2>الإشعارات</h2>
+            
+            <div id="notifications-actions" class="form-section">
+                <button id="mark-all-read-btn" class="btn">وضع علامة على الكل كمقروء</button>
+            </div>
+            
+            <div id="notifications-list" class="list-section">
+                <h3>قائمة الإشعارات</h3>
+                <div id="notifications-container">
+                    <!-- سيتم عرض الإشعارات هنا -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 جميع الحقوق محفوظة.</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/notifications.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // التحقق من حالة تسجيل الدخول
+            const { data: { session } } = await window.supabase.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // تحديث رابط تسجيل الخروج
+            const loginLogoutLink = document.getElementById('login-logout-link');
+            loginLogoutLink.textContent = 'تسجيل الخروج';
+            loginLogoutLink.href = '#';
+            loginLogoutLink.addEventListener('click', async (e) => {
+                e.preventDefault();
+                await window.supabase.auth.signOut();
+                window.location.href = 'index.html';
+            });
+
+            // تحميل الإشعارات
+            loadNotifications();
+
+            // إضافة مستمع لزر "وضع علامة على الكل كمقروء"
+            document.getElementById('mark-all-read-btn').addEventListener('click', async () => {
+                await markAllNotificationsAsRead();
+                loadNotifications();
+            });
+        });
+
+        async function loadNotifications() {
+            try {
+                const notifications = await getNotifications();
+                const container = document.getElementById('notifications-container');
+                
+                if (notifications.length === 0) {
+                    container.innerHTML = '<p>لا توجد إشعارات حالية.</p>';
+                    return;
+                }
+                
+                container.innerHTML = '';
+                
+                notifications.forEach(notification => {
+                    const notificationEl = document.createElement('div');
+                    notificationEl.className = `notification-item ${notification.is_read ? 'read' : 'unread'}`;
+                    notificationEl.innerHTML = `
+                        <div class="notification-header">
+                            <h4>${notification.title}</h4>
+                            <span class="notification-date">${new Date(notification.created_at).toLocaleString('ar-EG')}</span>
+                        </div>
+                        <div class="notification-body">
+                            <p>${notification.message}</p>
+                        </div>
+                        <div class="notification-actions">
+                            <button class="btn mark-read-btn" data-id="${notification.id}">${notification.is_read ? 'مقروء' : 'وضع علامة كمقروء'}</button>
+                        </div>
+                    `;
+                    
+                    container.appendChild(notificationEl);
+                    
+                    // إضافة مستمع لزر "وضع علامة كمقروء"
+                    const markReadBtn = notificationEl.querySelector('.mark-read-btn');
+                    markReadBtn.addEventListener('click', async () => {
+                        await markNotificationAsRead(notification.id);
+                        loadNotifications(); // إعادة تحميل الإشعارات
+                    });
+                });
+            } catch (error) {
+                console.error('Error loading notifications:', error);
+                alert('حدث خطأ أثناء تحميل الإشعارات');
+            }
+        }
+    </script>
+    
+    <style>
+        .form-section {
+            background: #fff;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        
+        .list-section {
+            background: #fff;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        
+        .notification-item {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+        
+        .unread {
+            border-right: 4px solid #007bff;
+            background-color: #f8f9fa;
+        }
+        
+        .read {
+            border-right: 4px solid #ddd;
+            background-color: #fff;
+        }
+        
+        .notification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .notification-header h4 {
+            margin: 0;
+            color: #333;
+        }
+        
+        .notification-date {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .notification-body {
+            margin-bottom: 10px;
+        }
+        
+        .notification-actions {
+            text-align: left;
+        }
+        
+        .mark-read-btn {
+            background-color: #28a745;
+        }
+        
+        .mark-read-btn:hover {
+            background-color: #218838;
+        }
+    </style>
+</body>
+</html>
